@@ -1,14 +1,15 @@
 import argparse
+import logging
 import os
 import sys
-from dataclasses import dataclass
-from datetime import datetime
-import logging
+from datetime import date, datetime
 from logging import getLogger
 
 import requests
 from dotenv import load_dotenv
 
+from src.models import Activity, Organization, Project
+from src.repositories import ActivityRepo, ProjectRepo, UserRepo
 
 load_dotenv()
 logger = getLogger()
@@ -21,50 +22,19 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-@dataclass
-class Organization:
-    id: int
-
-
-@dataclass
-class Project:
-    id: int
-
-
-@dataclass
-class Activity:
-    id: int
-    date: str
-    user_id: int
-    project_id: int
-    task_id: int
-    keyboard: int
-    mouse: int
-    overall: int
-    tracked: int
-    input_tracked: int
-    manual: int
-    idle: int
-    resumed: int
-    billable: int
-    created_at: datetime
-    updated_at: datetime
-
-
 class HubStaffClientException(Exception):
     pass
 
 
 class HubStaffClient:
-    def __init__(self, organization_id=None, base_url=None) -> None:
+    def __init__(self, organization_id=None, base_url=None, debug=False) -> None:
         if organization_id:
             self._organization_id = organization_id
 
         self.session = requests.Session()  # TODO: Move to a RequestsClient class
         self._base_url = os.environ.get("HUBSTAFF_BASE_URL", base_url)
         self._app_token = os.environ.get("HUBSTAFF_APP_TOKEN")
-        self._debug = os.environ.get("HUBSTAFF_DEBUG")  # TODO: move to logging config
-
+        self._debug = debug or os.environ.get("HUBSTAFF_DEBUG")
         self._set_session_token()
         if self._debug:
             logger.debug(f"Running Hubstaff client with org={self.organization_id}, app_token={self._app_token}")
@@ -131,28 +101,77 @@ class HubStaffClient:
         if response.status_code == 200:
             activities = response.json().get("daily_activities", [])
 
-        result = []
-        for _act in activities:
-            result.append(Activity(**_act))
         if self._debug:
             logger.debug(f"Got activities={activities}")
-        return result
+
+        return [
+            Activity(
+                id=activity["id"],
+                date=date.fromisoformat(activity["date"]),
+                user_id=activity["user_id"],
+                project_id=activity["project_id"],
+                task_id=activity["task_id"],
+                keyboard=activity["keyboard"],
+                mouse=activity["mouse"],
+                overall=activity["overall"],
+                tracked=activity["tracked"],
+                input_tracked=activity["input_tracked"],
+                manual=activity["manual"],
+                idle=activity["idle"],
+                resumed=activity["resumed"],
+                billable=activity["billable"],
+                created_at=datetime.fromisoformat(activity["created_at"]),  # only works in py3.11+
+                updated_at=datetime.fromisoformat(activity["updated_at"]),  # only works in py3.11+
+            )
+            for activity in activities
+        ]
 
 
-def main(organization_id):
+def main(organization_id, debug=False):
     hc = HubStaffClient(organization_id=organization_id)
     activities = hc.daily_activities()
+
+    arepo = ActivityRepo()
+    arepo.insert(activities)
+
+
+def install(debug=False):
+    logger.debug("Running install")
+    arepo = ActivityRepo()
+    prepo = ProjectRepo()
+    urepo = UserRepo()
+
+    arepo.create_table()
+    prepo.create_table()
+    urepo.create_table()
+
+    logger.debug("Install done")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gets daily activities for a certain organization")
     parser.add_argument(
+        "-d",
+        "--debug",
+        action="store_true",
+        help="Run in debug mode"
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "-o",
         "--organization",
         dest="organization_id",
-        required=True,
         help="Organization id as specified in Hubstaff API"
+    )
+    group.add_argument(
+        "-i",
+        "--install",
+        action="store_true",
+        help="Run once to create the DB file and tables"
     )
 
     args = parser.parse_args()
-    main(args.organization_id)
+    if args.install:
+        install(debug=args.debug)
+    else:
+        main(args.organization_id, debug=args.debug)
