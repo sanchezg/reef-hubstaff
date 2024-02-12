@@ -5,6 +5,7 @@ import sys
 from datetime import date, datetime
 from logging import getLogger
 
+import pandas as pd
 import requests
 from dotenv import load_dotenv
 
@@ -127,12 +128,30 @@ class HubStaffClient:
         ]
 
 
-def main(organization_id, debug=False):
-    hc = HubStaffClient(organization_id=organization_id)
-    activities = hc.daily_activities()
+def render_output(activities_repo: ActivityRepo, start=None, stop=None):
+    """
+    Present the aggregated information in an HTML table.
+    In the columns, there should be the employees, in the rows, there should be the projects, and in the cells in the middle, there should be the amount of time that a given employee spent working on a given project
+    """
+    raw_results = activities_repo.get(raw_data=True)  # TODO: implement filters
+    df = pd.DataFrame.from_records(data=raw_results, columns=Activity.__annotations__.keys())
 
+    if start == stop and start is not None:
+        df = df[df["date"] == start]
+    elif start is not None and stop is not None:
+        df = df[(df["date"] >= start) & (df["date"] <= stop)]
+    html = pd.pivot_table(df, index=["user_id"], columns=["project_id"], values="tracked", aggfunc="sum").fillna(0).to_html()
+    print(html)
+
+
+def main(organization_id, start=None, stop=None, report=None, debug=False):
     arepo = ActivityRepo()
-    arepo.insert(activities)
+    if not report:
+        hc = HubStaffClient(organization_id=organization_id)
+        activities = hc.daily_activities(start=start, stop=stop)
+        arepo.insert(activities)
+
+    render_output(arepo, start=None, stop=None)
 
 
 def install(debug=False):
@@ -170,8 +189,26 @@ if __name__ == "__main__":
         help="Run once to create the DB file and tables"
     )
 
+    parser.add_argument(
+        "-s",
+        "--start",
+        help="Start date for the activities"
+    )
+    parser.add_argument(
+        "-e",
+        "--end",
+        help="End date for the activities"
+    )
+
+    parser.add_argument(
+        "-r",
+        "--report",
+        action="store_true",
+        help="Only generate the report for the given dates. If no dates, then report for only last day."
+    )
+
     args = parser.parse_args()
     if args.install:
         install(debug=args.debug)
     else:
-        main(args.organization_id, debug=args.debug)
+        main(args.organization_id, start=args.start, stop=args.end, report=args.report, debug=args.debug)

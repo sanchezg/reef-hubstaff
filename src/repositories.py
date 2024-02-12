@@ -96,6 +96,9 @@ class ActivityRepo(SQLiteRepo, ActivityBaseRepo):
 
     def get(self, **kwargs) -> list[Activity] | None:
         rows = super().get(table="activities")
+        if kwargs.get("raw_data"):
+            return rows
+
         if rows:
             return [
                 Activity(
