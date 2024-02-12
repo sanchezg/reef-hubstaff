@@ -152,7 +152,7 @@ class HubStaffClient:
         ]
 
 
-def render_output(activities_repo: ActivityRepo, start=None, stop=None):
+def render_output(activities_repo: ActivityRepo, projects_repo: ProjectRepo, start=None, stop=None):
     """
     Present the aggregated information in an HTML table.
     In the columns, there should be the employees, in the rows, there should be the projects, and in the cells in the middle, there should be the amount of time that a given employee spent working on a given project
@@ -160,11 +160,15 @@ def render_output(activities_repo: ActivityRepo, start=None, stop=None):
     raw_results = activities_repo.get(raw_data=True)  # TODO: implement filters
     df = pd.DataFrame.from_records(data=raw_results, columns=Activity.__annotations__.keys())
 
+    # Merging to get project name and improve readability
+    projects_df = pd.DataFrame.from_records(data=projects_repo.get(raw_data=True), columns=Project.__annotations__.keys())
+    df = df.merge(projects_df, left_on="project_id", right_on="id", suffixes=("", "_project"))
+
     if start == stop and start is not None:
         df = df[df["date"] == start]
     elif start is not None and stop is not None:
         df = df[(df["date"] >= start) & (df["date"] <= stop)]
-    pivot = pd.pivot_table(df, index=["user_id"], columns=["project_id"], values="tracked", aggfunc="sum").fillna(0)
+    pivot = pd.pivot_table(df, index=["user_id"], columns=["name"], values="tracked", aggfunc="sum").fillna(0)
 
     to_hour = lambda x: str(timedelta(seconds=x))
     for col in pivot.columns:
@@ -183,7 +187,7 @@ def main(organization_id, start=None, stop=None, report=None, debug=False):
         projects = hc.projects()
         prepo.insert(projects)
 
-    render_output(arepo, start=None, stop=None)
+    render_output(arepo, prepo, start=None, stop=None)
 
 
 def install(debug=False):

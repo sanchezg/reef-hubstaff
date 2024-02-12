@@ -152,7 +152,9 @@ class ProjectRepo(SQLiteRepo, ProjectBaseRepo):
         return super().create_table(table, columns)
 
     def get(self, **kwargs) -> list[Project] | None:
-        rows = super().get(table="projects", filters={"organization_id": kwargs.get("organization_id")})
+        rows = super().get(table="projects")
+        if kwargs.get("raw_data"):
+            return rows
         if rows:
             return [
                 Project(
