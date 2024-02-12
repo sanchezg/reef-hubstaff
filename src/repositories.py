@@ -4,7 +4,7 @@ import sqlite3
 from datetime import date, datetime
 from typing import Any, Generic, Optional, TypeVar
 
-from src.models import Activity, Organization, Project, User
+from src.models import Activity, Project, User
 
 T = TypeVar("T")
 
@@ -198,6 +198,15 @@ class UserBaseRepo(AbstractRepo[User], metaclass=abc.ABCMeta):
 
 
 class UserRepo(SQLiteRepo, UserBaseRepo):
+    """
+    Note: UserRepo was added with the purpose of having a way to report users by name instead of id.
+    The issue is that I couldn't find a way to get this user information:
+        - `/v339/company/{{organization_id}}/staff_members` endpoint does not return users name.
+        - `/v339/members/self` only returns info for the logged-in user.
+
+    I'll leave UserRepo here with extensibility purposes. But now is not used.
+    """
+
     entity = User
 
     def create_table(self) -> None:

@@ -3,11 +3,6 @@ from datetime import date, datetime
 
 
 @dataclass
-class Organization:
-    id: int
-
-
-@dataclass
 class Project:
     id: int
     name: str
