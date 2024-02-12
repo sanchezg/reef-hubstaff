@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from logging import getLogger
 
 import pandas as pd
@@ -164,7 +164,12 @@ def render_output(activities_repo: ActivityRepo, start=None, stop=None):
         df = df[df["date"] == start]
     elif start is not None and stop is not None:
         df = df[(df["date"] >= start) & (df["date"] <= stop)]
-    html = pd.pivot_table(df, index=["user_id"], columns=["project_id"], values="tracked", aggfunc="sum").fillna(0).to_html()
+    pivot = pd.pivot_table(df, index=["user_id"], columns=["project_id"], values="tracked", aggfunc="sum").fillna(0)
+
+    to_hour = lambda x: str(timedelta(seconds=x))
+    for col in pivot.columns:
+        pivot[col] = pivot[col].apply(to_hour) # improve readability
+    html = pivot.to_html()
     print(html)
 
 
