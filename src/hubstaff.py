@@ -127,6 +127,30 @@ class HubStaffClient:
             for activity in activities
         ]
 
+    def projects(self) -> list[Project]:
+        response = self._get(f"v339/company/{self.organization_id}/projects")
+        if self._debug:
+            logger.debug(f"Getting projects: sc={response.status_code}, content={response.content}")
+
+        projects = []
+        if response.status_code == 200:
+            projects = response.json().get("projects", [])
+
+        if self._debug:
+            logger.debug(f"Got projects={projects}")
+
+        return [
+            Project(
+                id=project["id"],
+                name=project["name"],
+                status=project["status"],
+                billable=project["billable"],
+                created_at=datetime.fromisoformat(project["created_at"]),  # only works in py3.11+
+                updated_at=datetime.fromisoformat(project["updated_at"]),  # only works in py3.11+
+            )
+            for project in projects
+        ]
+
 
 def render_output(activities_repo: ActivityRepo, start=None, stop=None):
     """
@@ -146,10 +170,13 @@ def render_output(activities_repo: ActivityRepo, start=None, stop=None):
 
 def main(organization_id, start=None, stop=None, report=None, debug=False):
     arepo = ActivityRepo()
+    prepo = ProjectRepo()
     if not report:
         hc = HubStaffClient(organization_id=organization_id)
         activities = hc.daily_activities(start=start, stop=stop)
         arepo.insert(activities)
+        projects = hc.projects()
+        prepo.insert(projects)
 
     render_output(arepo, start=None, stop=None)
 
