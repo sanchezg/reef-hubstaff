@@ -89,7 +89,7 @@ class ActivityRepo(SQLiteRepo, ActivityBaseRepo):
             "resumed": "INTEGER",
             "billable": "INTEGER",
             "created_at": "DATETIME",
-            "updated_at": "DATETIME"
+            "updated_at": "DATETIME",
         }
 
         return super().create_table(table, columns)
@@ -117,7 +117,7 @@ class ActivityRepo(SQLiteRepo, ActivityBaseRepo):
                     resumed=row[12],
                     billable=row[13],
                     created_at=datetime.fromisoformat(row[14]),
-                    updated_at=datetime.fromisoformat(row[15])
+                    updated_at=datetime.fromisoformat(row[15]),
                 )
                 for row in rows
             ]
@@ -125,7 +125,24 @@ class ActivityRepo(SQLiteRepo, ActivityBaseRepo):
     def insert(self, activities: list[Activity]) -> None:
         table = "activities"
         values = [
-            (obj.id, obj.date.isoformat(), obj.user_id, obj.project_id, obj.task_id, obj.keyboard, obj.mouse, obj.overall, obj.tracked, obj.input_tracked, obj.manual, obj.idle, obj.resumed, obj.billable, obj.created_at.isoformat(), obj.updated_at.isoformat())
+            (
+                obj.id,
+                obj.date.isoformat(),
+                obj.user_id,
+                obj.project_id,
+                obj.task_id,
+                obj.keyboard,
+                obj.mouse,
+                obj.overall,
+                obj.tracked,
+                obj.input_tracked,
+                obj.manual,
+                obj.idle,
+                obj.resumed,
+                obj.billable,
+                obj.created_at.isoformat(),
+                obj.updated_at.isoformat(),
+            )
             for obj in activities
         ]
         return super().insert(table, values=values, on_conflict="REPLACE")
@@ -146,7 +163,7 @@ class ProjectRepo(SQLiteRepo, ProjectBaseRepo):
             "status": "TEXT",
             "billable": "INTEGER",
             "created_at": "DATETIME",
-            "updated_at": "DATETIME"
+            "updated_at": "DATETIME",
         }
 
         return super().create_table(table, columns)
@@ -163,7 +180,7 @@ class ProjectRepo(SQLiteRepo, ProjectBaseRepo):
                     status=row[2],
                     billable=bool(row[3]),
                     created_at=datetime.fromisoformat(row[4]),
-                    updated_at=datetime.fromisoformat(row[5])
+                    updated_at=datetime.fromisoformat(row[5]),
                 )
                 for row in rows
             ]
@@ -192,6 +209,6 @@ class UserRepo(SQLiteRepo, UserBaseRepo):
             "time_zone": "TEXT",
             "status": "TEXT",
             "created_at": "DATETIME",
-            "updated_at": "DATETIME"
+            "updated_at": "DATETIME",
         }
         return super().create_table(table, columns)

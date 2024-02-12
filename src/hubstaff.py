@@ -47,13 +47,10 @@ class HubStaffClient:
     @property
     def base_url(self):
         return self._base_url
-    
+
     @property
     def credentials(self):
-        return {
-            "email": os.environ.get("HUBSTAFF_EMAIL"),
-            "password": os.environ.get("HUBSTAFF_PASSWORD")
-        }
+        return {"email": os.environ.get("HUBSTAFF_EMAIL"), "password": os.environ.get("HUBSTAFF_PASSWORD")}
 
     def organizations(self) -> Organization:
         raise NotImplementedError()
@@ -66,15 +63,12 @@ class HubStaffClient:
 
     def _authenticate(self):
         response = self.session.post(
-            f"{self.base_url}/v339/members/login",
-            data=self.credentials
+            f"{self.base_url}/v339/members/login", data=self.credentials
         )  # TODO: Move to a RequestsClient class
         if self._debug:
             logger.debug(f"Trying to authenticate: {response.status_code}")
         if response.status_code == 200 and "auth_token" in response.json():
-            self.session.headers.update({
-                "AuthToken": response.json()["auth_token"]
-            })
+            self.session.headers.update({"AuthToken": response.json()["auth_token"]})
 
     def _get(self, path, *args, **kwargs):  # TODO: Move to a RequestsClient class
         url = f"{self.base_url}/{path}"
@@ -88,15 +82,13 @@ class HubStaffClient:
             start = _today.isoformat()
             stop = _today.isoformat()
 
-        self.session.headers.update(
-            {"DateStart": start}
-        )
+        self.session.headers.update({"DateStart": start})
 
-        response = self._get(
-            f"v339/company/{self.organization_id}/operations/by_day", params={"date[stop]": stop}
-        )
+        response = self._get(f"v339/company/{self.organization_id}/operations/by_day", params={"date[stop]": stop})
         if self._debug:
-            logger.debug(f"Getting daily activities: start={start}, stop={stop}, sc={response.status_code}, content={response.content}")
+            logger.debug(
+                f"Getting daily activities: start={start}, stop={stop}, sc={response.status_code}, content={response.content}"
+            )
 
         activities = []
         if response.status_code == 200:
@@ -155,13 +147,16 @@ class HubStaffClient:
 def render_output(activities_repo: ActivityRepo, projects_repo: ProjectRepo, start=None, stop=None):
     """
     Present the aggregated information in an HTML table.
-    In the columns, there should be the employees, in the rows, there should be the projects, and in the cells in the middle, there should be the amount of time that a given employee spent working on a given project
+    In the columns, there should be the employees, in the rows, there should be the projects, and in the cells in the
+    middle, there should be the amount of time that a given employee spent working on a given project
     """
     raw_results = activities_repo.get(raw_data=True)  # TODO: implement filters
     df = pd.DataFrame.from_records(data=raw_results, columns=Activity.__annotations__.keys())
 
     # Merging to get project name and improve readability
-    projects_df = pd.DataFrame.from_records(data=projects_repo.get(raw_data=True), columns=Project.__annotations__.keys())
+    projects_df = pd.DataFrame.from_records(
+        data=projects_repo.get(raw_data=True), columns=Project.__annotations__.keys()
+    )
     df = df.merge(projects_df, left_on="project_id", right_on="id", suffixes=("", "_project"))
 
     if start == stop and start is not None:
@@ -172,7 +167,7 @@ def render_output(activities_repo: ActivityRepo, projects_repo: ProjectRepo, sta
 
     to_hour = lambda x: str(timedelta(seconds=x))
     for col in pivot.columns:
-        pivot[col] = pivot[col].apply(to_hour) # improve readability
+        pivot[col] = pivot[col].apply(to_hour)  # improve readability
     html = pivot.to_html()
     print(html)
 
@@ -205,42 +200,21 @@ def install(debug=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gets daily activities for a certain organization")
-    parser.add_argument(
-        "-d",
-        "--debug",
-        action="store_true",
-        help="Run in debug mode"
-    )
+    parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "-o",
-        "--organization",
-        dest="organization_id",
-        help="Organization id as specified in Hubstaff API"
+        "-o", "--organization", dest="organization_id", help="Organization id as specified in Hubstaff API"
     )
-    group.add_argument(
-        "-i",
-        "--install",
-        action="store_true",
-        help="Run once to create the DB file and tables"
-    )
+    group.add_argument("-i", "--install", action="store_true", help="Run once to create the DB file and tables")
 
-    parser.add_argument(
-        "-s",
-        "--start",
-        help="Start date for the activities"
-    )
-    parser.add_argument(
-        "-e",
-        "--end",
-        help="End date for the activities"
-    )
+    parser.add_argument("-s", "--start", help="Start date for the activities")
+    parser.add_argument("-e", "--end", help="End date for the activities")
 
     parser.add_argument(
         "-r",
         "--report",
         action="store_true",
-        help="Only generate the report for the given dates. If no dates, then report for only last day."
+        help="Only generate the report for the given dates. If no dates, then report for only last day.",
     )
 
     args = parser.parse_args()
